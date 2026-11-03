@@ -190,7 +190,11 @@ function practicaInicia(limpio) {
 var DISP = (function () { var d = ''; try { d = localStorage.getItem('v03_disp') || ''; if (!d) { d = 'T' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); localStorage.setItem('v03_disp', d); } } catch (e) { } return d; })();
 var EQUIPO = (function () { var u = navigator.userAgent || ''; return /iPad/.test(u) || (/Macintosh/.test(u) && 'ontouchend' in document) ? 'iPad' : /iPhone/.test(u) ? 'iPhone' : /Android/.test(u) ? (/Mobile/.test(u) ? 'celular Android' : 'tableta Android') : 'computadora'; })();
 function llamar(rq) {
-  rq.disp = DISP; rq.eq = EQUIPO;
+  rq.disp = DISP; rq.eq = EQUIPO; if (S.rtt) { rq.rtt = S.rtt; rq.rtA = S.rtA; S.rtt = 0; } rq.via = GAS ? 'G' : API ? 'P' : 'X';
+  var t0 = Date.now(), mide = function (x) { S.rtt = Date.now() - t0; S.rtA = rq.accion; return x; };
+  return llamar0(rq).then(mide);
+}
+function llamar0(rq) {
   if (window.V03_CIERRE && GAS) return new Promise(function (ok, no) { google.script.run.withSuccessHandler(function (t) { ok(JSON.parse(t)); }).withFailureHandler(no).v03CorteCierreApi(JSON.stringify({ tok: window.V03_CIERRE, accion: rq.accion, datos: rq.datos, idem: rq.idem })); });
   if (PRACTICA) return Promise.resolve(Motor.procesar(store, rq));
   if (GAS) return new Promise(function (ok, no) { google.script.run.withSuccessHandler(function (t) { ok(JSON.parse(t)); }).withFailureHandler(no).v03Api(JSON.stringify(rq)); });
@@ -1908,7 +1912,7 @@ function vProblema() {
 
 /* ====== PANEL DE ADMINISTRACIÓN (celular): clave + segundo paso, todo sin abrir el editor ====== */
 function hoyTxt() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
-function cargaDueno() { return api('dueno_resumen').then(function (r) { if (r.ok) { S.du = r; S.act = Date.now(); } else if (r.error === 'SESION') { S.sesion = ''; ls.set('v03_dues', null); var sv2 = ls.get('v03_ses', null); if (sv2) { sv2.sesion = ''; ls.set('v03_ses', sv2); } } else toast(false, r.msg); pinta(); }); }
+function cargaDueno() { S.duVa = 1; return api('dueno_resumen').then(function (r) { S.duVa = 0; S.duViejo = 0; S.duErr = r.ok ? 0 : Date.now(); if (r.ok) { S.du = r; S.act = Date.now(); try { ls.set('v03_du', { t: S.act, p: S.e && S.e.persona && S.e.persona.id, r: r }); } catch (x) { } if (S.duOtra) { S.duOtra = 0; S.duViejo = 1; setTimeout(cargaDueno, 0); } } else if (r.error === 'SESION') { S.sesion = ''; ls.set('v03_dues', null); var sv2 = ls.get('v03_ses', null); if (sv2) { sv2.sesion = ''; ls.set('v03_ses', sv2); } } else toast(false, r.msg); pinta(); }); }
 /* 22-oct: REPORTE GENERAL del dueño · por autorizar (todos los locales) · locales de un vistazo con semáforo y detalle · semana en gráficas */
 function cargaGeneral() { S.genCarga = true; return api('dueno_general').then(function (r) { S.genCarga = false; if (r.ok) { S.gen = r; S.genTs = Date.now(); } else toast(false, r.msg || 'No se pudo cargar'); if (S.pant === 'general') pinta(); }).catch(function () { S.genCarga = false; toast(false, 'Sin conexión.'); }); }
 function barras(items, color, fmtF) { var mx = Math.max.apply(null, items.map(function (x) { return Math.abs(x.v) || 0; }).concat([1])); return items.map(function (x) { return '<div class="gbr"><span>' + esc(x.n) + '</span><i style="width:' + Math.max(2, Math.round(100 * (Math.abs(x.v) || 0) / mx)) + '%;background:' + (x.c || color) + '"></i><em>' + (fmtF || din)(x.v) + '</em></div>'; }).join(''); }
@@ -2317,13 +2321,18 @@ function abreReporte(cual, dia) {
     pinta(); });
 }
 function vDueno() {
-  var h = '<header><div><div class="loc n">PANEL DE ADMINISTRACIÓN</div><div class="sub">' + (S.du ? 'actualizado a las ' + hora(S.act) : 'segundo paso') + '</div></div><div class="who">' + esc(S.e.persona.nombre) + '</div></header><div class="holo"></div><div class="wrap">';
+  var h = '<header><div><div class="loc n">PANEL DE ADMINISTRACIÓN</div><div class="sub">' + (S.du ? 'actualizado a las ' + hora(S.act) + (S.duViejo ? ' · ⏳ actualizando…' : '') : 'segundo paso') + '</div></div><div class="who">' + esc(S.e.persona.nombre) + '</div></header><div class="holo"></div><div class="wrap">';
   if (!S.sesion && !(S.e.soloClave)) {
     var pr = ''; if (PRACTICA) { var av = store.S.avisos.filter(function (a) { return a.clase === 'CODIGO'; }).pop(); if (av) pr = '<div class="prac">MODO PRÁCTICA · tu código es ' + av.codigo + ' (en operación llega a tu Telegram).</div>'; }
     return h + pr + '<div class="card"><h2>Segundo paso</h2><div style="color:var(--txt2)">Además de tu clave, te mando un código de un solo uso a tu Telegram. Dura 5 minutos.</div><button class="gb" data-acc="ducodigo">📲 MANDARME EL CÓDIGO</button>' +
       '<div class="lbl">Código de 6 dígitos</div><input id="du_cod" class="pinb" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="Código"><button class="gb verde" data-acc="duentrar">ENTRAR</button></div><div class="pie"><button class="lk" data-ir="auts">Solo autorizar (sin segundo paso)</button><button class="lk" data-acc="salir">Salir</button></div></div>';
   }
-  if (!S.du) { cargaDueno(); return h + '<div class="card">Cargando locales…</div></div>'; }
+  if (!S.du) {   /* 3-nov: abre al instante con la última copia de este equipo y se actualiza atrás */
+    var duC = ls.get('v03_du', null); if (duC && duC.r && duC.r.locales && duC.p === S.e.persona.id && Date.now() - duC.t < 12 * 3600000) { S.du = duC.r; S.act = duC.t; S.duViejo = 1; }
+    if (S.duVa) S.duOtra = 1;   /* algo cambió mientras se cargaba: al terminar se vuelve a pedir */
+    if (!S.duVa && !(S.duErr && Date.now() - S.duErr < 5000)) cargaDueno(); else if (!S.duVa) setTimeout(function () { if (S.pant === 'dueno' && !S.du) pinta(); }, 5000);
+    if (!S.du) return h + '<div class="card">' + (S.duErr ? 'No se pudo cargar. Reintento en unos segundos…' : 'Cargando locales…') + '</div></div>';
+  }
   var al = S.du.locales.filter(function (l) { return l.alta; }), no = S.du.locales.filter(function (l) { return !l.alta; }), CO = { VERDE: 'var(--neo4)', AMARILLO: 'var(--neo3)', ROJO: 'var(--mal)' };
   h += '<div class="pie" style="justify-content:flex-start"><button class="lk" data-acc="duavisos">📣 Avisos</button><button class="lk" data-ir="dubase">📦 Bases</button><button class="lk" data-ir="ruta">🚚 Bruno y cajas de acero</button><button class="lk" data-acc="dusalud">🩺 Salud y reparar</button><button class="lk" data-ir="ducfg">⚙ Configuración</button><button class="lk" data-acc="dubit">📒 Bitácora</button><button class="lk" data-acc="durefresca">↻ Actualizar</button><button class="lk" data-acc="salir">Salir</button></div>';
   var nPend = al.reduce(function (t, l) { return t + (l.pendientes || 0); }, 0);
@@ -3250,7 +3259,7 @@ app.addEventListener('click', function (ev) {
       ocupado(true); return new Promise(function (ok, no) { google.script.run.withSuccessHandler(function (t) { ok(JSON.parse(t)); }).withFailureHandler(no).v03Pase(JSON.stringify({ local: S.local, pin: S.pin, disp: DISP, eq: EQUIPO, ls: gp })); })
         .then(function (r) { ocupado(false); if (!r.ok) return toast(false, r.msg || 'No se pudo preparar.'); window.open(String(window.V03_PWA).replace(/#.*$/, '') + '#api=' + encodeURIComponent(window.V03_URL || '') + '&pase=' + r.t, '_top'); })
         .catch(function () { ocupado(false); toast(false, 'Sin conexión. Intenta de nuevo.'); }); }
-    case 'salir': { var fuera = function () { ls.set('v03_ses', null); ls.set('v03_eult', null); S.pin = ''; S.e = null; S.sesion = ''; S.du = null; S.cfg = null; S.duMsg = ''; ir('login'); }; if (S.e && ['ENCARGADA', 'OPERADOR', 'CORTADOR'].indexOf(S.e.persona.rol) >= 0 && !PRACTICA) return api('asistencia', { evento: 'SALIDA' }).then(function (q) { if (q.ok && !q.repetido && !q.omitido) toast(true, q.msg); fuera(); }); return fuera(); }
+    case 'salir': { var fuera = function () { ls.set('v03_ses', null); ls.set('v03_eult', null); ls.set('v03_du', null); S.pin = ''; S.e = null; S.sesion = ''; S.du = null; S.cfg = null; S.duMsg = ''; ir('login'); }; if (S.e && ['ENCARGADA', 'OPERADOR', 'CORTADOR'].indexOf(S.e.persona.rol) >= 0 && !PRACTICA) return api('asistencia', { evento: 'SALIDA' }).then(function (q) { if (q.ok && !q.repetido && !q.omitido) toast(true, q.msg); fuera(); }); return fuera(); }
     case 'ducodigo': return api('dueno_codigo').then(function (r) { toast(r.ok, r.msg); pinta(); });
     case 'duentrar': return api('dueno_entrar', { codigo: $('#du_cod').value }).then(function (r) { if (!r.ok) return toast(false, r.msg); S.sesion = r.sesion; var sv1 = ls.get('v03_ses', null); if (sv1) { sv1.sesion = r.sesion; ls.set('v03_ses', sv1); } ls.set('v03_dues', { sesion: r.sesion, hasta: Date.now() + 30 * 864e5 }); S.du = null; pinta(); });
     case 'durefresca': S.du = null; S.duMsg = ''; return pinta();
@@ -3272,7 +3281,7 @@ app.addEventListener('click', function (ev) {
     case 'cfok': { var dn = leeDen('cf_'), tt = Number(($('#cf_total') || {}).value) || 0; if (dn.mal) return toast(false, dn.mal); if (!(dn.tot > 0) && !(tt > 0)) return toast(false, 'Escribe lo que de verdad había.');
       var dd = { folio: d.f, motivo: ($('#cf_mot') || {}).value || '' }; if (dn.tot > 0) dd.denoms = dn.den; else dd.monto = tt;
       ocupado(true); return api('corregir_conteo', dd, { conEstado: false }).then(function (r) { ocupado(false); if (!r.ok) return toast(false, r.msg); toast(true, r.msg); S.cfFolio = ''; S.cfLista = null; return cargaConFix(); }); }
-    case 'duvolver': S.du = null; ir('dueno'); return cargaDueno();
+    case 'duvolver': S.du = null; return ir('dueno');
     case 'duver': S.local = d.l; ocupado(true); return llamar({ accion: 'entrar', local: S.local, pin: S.pin }).then(function (r) { ocupado(false); if (!r.ok) return toast(false, r.msg); S.e = r; S.act = Date.now(); ir('inicio'); window.scrollTo(0, 0); });
     case 'duvolver': S.du = S.du || null; return ir('dueno');
     case 'duir': S.local = d.l; return llamar({ accion: 'entrar', local: S.local, pin: S.pin }).then(function (r) { if (!r.ok) return toast(false, r.msg); S.e = r; S.act = Date.now(); ir('auts'); });
