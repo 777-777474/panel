@@ -253,16 +253,21 @@ function vaciarCola() {
 var REF = { va: null, fallas: 0 };
 function refresca(silencio) {
   if (!S.pin) return Promise.resolve();
-  if (REF.va) return REF.va;
+  if (REF.va) { S.refAuto = 0; return REF.va; }
   REF.va = refresca2(silencio); var fin = function () { REF.va = null; }; REF.va.then(fin, fin); return REF.va;
 }
+function refHuella(r) { try { var c = Object.assign({}, r); delete c.ts; delete c.build; return JSON.stringify(c); } catch (e) { return String(Math.random()); } }
+document.addEventListener('pointerdown', function () { S.toque = Date.now(); }, true);
+setInterval(function () { if (S.pintaPend && Date.now() - (S.toque || 0) >= 2500 && !document.querySelector('input:focus')) { S.pintaPend = 0; pinta(); } }, 1000);
 function refresca2(silencio) {
-  var t0 = Date.now(); return llamar({ accion: 'estado', local: S.local, pin: S.pin }).then(function (r) { S.enLinea = true; if (r && r.ok && S.cjOver) Object.keys(S.cjOver).forEach(function (k) { if (S.cjOver[k].t < t0) delete S.cjOver[k]; }); REF.fallas = 0; if (r && r.error === 'TABLETA') { ls.set('v03_ses', null); S.pin = ''; S.e = null; toast(false, r.msg); ir('login'); return; } if (r && r.build && window.V03_BUILD && r.build !== window.V03_BUILD) S.nueva = true;
-    if (r && r.ok) { S.sinServidor = false; S.e = r; S.act = Date.now(); guardaEm(); if (!silencio || S.pant === 'inicio') pinta(); } else if (r && (r.error === 'SERVIDOR' || r.error === 'OCUPADO')) { if (++REF.fallas >= 2) { S.sinServidor = true; if (S.pant === 'inicio') pinta(); } } })
+  var auto = S.refAuto; S.refAuto = 0; var t0 = Date.now(); return llamar({ accion: 'estado', local: S.local, pin: S.pin }).then(function (r) { var antesEst = (S.enLinea ? 1 : 0) + '' + (S.sinServidor ? 1 : 0); S.enLinea = true; if (r && r.ok && S.cjOver) Object.keys(S.cjOver).forEach(function (k) { if (S.cjOver[k].t < t0) delete S.cjOver[k]; }); REF.fallas = 0; if (r && r.error === 'TABLETA') { ls.set('v03_ses', null); S.pin = ''; S.e = null; toast(false, r.msg); ir('login'); return; } if (r && r.build && window.V03_BUILD && r.build !== window.V03_BUILD) S.nueva = true;
+    if (r && r.ok) { S.sinServidor = false; var huella = refHuella(r) + '|' + (S.e && S.e.emergencia ? 1 : 0), igual = auto && huella === S.eHuella && antesEst === '10'; S.eHuella = huella; S.e = r; S.act = Date.now(); guardaEm();
+      /* 3-nov: el refresco automático ya no vuelve a pintar si nada cambió, ni justo cuando están tocando la pantalla (se perdía el toque y había que presionar varias veces) */
+      if ((!silencio || S.pant === 'inicio') && !igual) { if (auto && Date.now() - (S.toque || 0) < 2500) S.pintaPend = 1; else pinta(); } } else if (r && (r.error === 'SERVIDOR' || r.error === 'OCUPADO')) { if (++REF.fallas >= 2) { S.sinServidor = true; if (S.pant === 'inicio') pinta(); } } })
     .catch(function () { if (++REF.fallas >= 2) { S.enLinea = false; if (S.pant === 'inicio') pinta(); } });
 }
 document.addEventListener('visibilitychange', function () { if (!document.hidden && S.pin) { refresca(true); vaciarCola(); } });
-setInterval(function () { if (document.hidden) return; if (S.pin && ['inicio', 'fase', 'auts'].indexOf(S.pant) >= 0 && !document.querySelector('input:focus') && !document.getElementById('scanver') && !document.getElementById('leyendo') && !document.getElementById('scanov')) refresca(S.pant !== 'inicio' && S.pant !== 'auts' ? true : false); vaciarCola(); }, 20000);
+setInterval(function () { if (document.hidden) return; if (S.pin && ['inicio', 'fase', 'auts'].indexOf(S.pant) >= 0 && !document.querySelector('input:focus') && !document.getElementById('scanver') && !document.getElementById('leyendo') && !document.getElementById('scanov')) { S.refAuto = 1; refresca(S.pant !== 'inicio' && S.pant !== 'auts' ? true : false); } vaciarCola(); }, 20000);
 
 /* ====== utilidades de pantalla ====== */
 var tmr = null;
