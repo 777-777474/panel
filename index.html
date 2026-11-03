@@ -267,7 +267,7 @@ function refresca2(silencio) {
   var auto = S.refAuto; S.refAuto = 0; var t0 = Date.now(); return llamar({ accion: 'estado', local: S.local, pin: S.pin }).then(function (r) { var antesEst = (S.enLinea ? 1 : 0) + '' + (S.sinServidor ? 1 : 0); S.enLinea = true; if (r && r.ok && S.cjOver) Object.keys(S.cjOver).forEach(function (k) { if (S.cjOver[k].t < t0) delete S.cjOver[k]; }); REF.fallas = 0; if (r && r.error === 'TABLETA') { ls.set('v03_ses', null); S.pin = ''; S.e = null; toast(false, r.msg); ir('login'); return; } if (r && r.build && window.V03_BUILD && r.build !== window.V03_BUILD) S.nueva = true;
     if (r && r.ok) { S.sinServidor = false; var huella = refHuella(r) + '|' + (S.e && S.e.emergencia ? 1 : 0), igual = auto && huella === S.eHuella && antesEst === '10'; S.eHuella = huella; S.e = r; S.act = Date.now(); guardaEm();
       /* 3-nov: el refresco automático ya no vuelve a pintar si nada cambió, ni justo cuando están tocando la pantalla (se perdía el toque y había que presionar varias veces) */
-      if ((!silencio || S.pant === 'inicio') && !igual) { if (auto && Date.now() - (S.toque || 0) < 2500) S.pintaPend = 1; else pinta(); } } else if (r && (r.error === 'SERVIDOR' || r.error === 'OCUPADO')) { if (++REF.fallas >= 2) { S.sinServidor = true; if (S.pant === 'inicio') pinta(); } } })
+      if ((!silencio || S.pant === 'inicio') && !igual) { if (auto && (Date.now() - (S.toque || 0) < 2500 || (document.activeElement && document.activeElement.tagName === 'INPUT'))) S.pintaPend = 1; else pinta(); } } else if (r && (r.error === 'SERVIDOR' || r.error === 'OCUPADO')) { if (++REF.fallas >= 2) { S.sinServidor = true; if (S.pant === 'inicio') pinta(); } } })
     .catch(function () { if (++REF.fallas >= 2) { S.enLinea = false; if (S.pant === 'inicio') pinta(); } });
 }
 document.addEventListener('visibilitychange', function () { if (!document.hidden && S.pin) { refresca(true); vaciarCola(); } });
@@ -2871,7 +2871,8 @@ function cjTabla(c) {
   var gc = '128px repeat(' + cols.length + ', minmax(104px, 1fr))', mw = (128 + cols.length * 108) + 'px';
   var h = '<div style="overflow-x:auto"><div style="min-width:' + mw + ';display:flex;flex-direction:column;gap:4px">';
   var stk = 'position:sticky;left:0;z-index:2;background:#111D42;';
-  h += '<div style="display:grid;grid-template-columns:' + gc + ';gap:4px;align-items:end"><span style="' + stk + 'align-self:stretch"></span>' + cols.map(function (x) { return '<b style="font-size:12px;color:' + x.c + ';text-align:center;padding:4px">' + x.t + '</b>'; }).join('') + '</div>';
+  h += '<div style="display:grid;grid-template-columns:' + gc + ';gap:4px;align-items:end"><span style="' + stk + 'align-self:stretch"></span>' + cols.map(function (x) { var hb = '<b style="font-size:12px;color:' + x.c + ';text-align:center;padding:4px">' + x.t + '</b>';
+    return x.base && cjBaseOk(e) ? '<div style="display:flex;flex-direction:column;align-items:stretch;gap:4px">' + hb + '<button data-acc="cjnb" data-c="' + c + '" style="cursor:pointer;min-height:40px;border-radius:10px;border:2px solid #8FF0C4;background:#123A33;color:#8FF0C4;font:inherit;font-size:13px;font-weight:800">＋ Otra base</button></div>' : hb; }).join('') + '</div>';
   filas.forEach(function (f) {
     h += '<div style="display:grid;grid-template-columns:' + gc + ';gap:4px;align-items:center"><b style="' + stk + 'font-size:14px;padding:4px 6px 4px 2px;display:flex;align-items:center;gap:6px;min-height:44px;box-shadow:6px 0 8px -6px rgba(0,0,0,.6)">' + cjCoin(c === 'BOL' ? 'Total' : f[0]) + '<span>' + f[1] + '</span></b>' + cols.map(function (x) {
       if (x.mo && x.mo === moAbierto) { var id = 'cj_' + c + '_' + x.mo + '_' + String(f[0]).replace('.', '_'); return cjCelda(id, (S.cjVal || {})[id], colIn); }
@@ -2888,6 +2889,7 @@ function cjTabla(c) {
     if (x.mo && x.mo === moAbierto) return '<b id="cjt_' + c + '_' + x.mo + '" style="text-align:right;padding:10px 8px;border-radius:10px;background:#17254F">' + din(cjSuma(c, x.mo)) + '</b>';
     var rojo = !!(x.mo && x.tot != null && falt.length);
     return '<b style="text-align:right;padding:10px 8px;border-radius:10px;background:' + (rojo ? '#3E1820;border:2px solid #FF5A5F' : '#17254F') + '">' + (x.tot == null ? '—' : (x.sg && x.tot > 0 ? '+' : '') + din(x.tot)) + '</b>'; }).join('') + '</div></div></div>';
+  if (c !== 'BOL') h += cjBasesHoy(c);
   var ccm = ['INICIO', 'CIERRE'].map(function (mo) { return mo !== moAbierto ? cjConteoMov(e, c, mo) : null; }).filter(Boolean);
   [['INICIO', z.pIni, 'Iniciaste hoy'], ['CIERRE', z.pFin, 'Dejas en la noche']].forEach(function (q) { if (q[1] != null) h += '<div style="margin-top:6px;font-size:13px;font-weight:700;color:#FFB86B">⏳ Corrección por autorizar · ' + q[2] + ' → ' + din(q[1]) + '</div>'; });
   if (ccm.length) { var qd = Math.max.apply(null, ccm.map(function (m) { return Math.ceil(60 - (Date.now() - m.ts) / 60000); }));
@@ -2899,6 +2901,27 @@ function cjTabla(c) {
   } else if (z.finTot != null) h += '<div style="margin-top:8px;font-weight:700;color:' + (falt.length ? '#FF8A8E' : '#8FF0C4') + '">' + (falt.length ? '📌 Quedó asentado · lo revisa oficina' : '✔ Caja contada en la noche') + '</div>';
   else if (cjEst(e, c, 'INICIO') && cjEst(e, c, 'INICIO') !== 'OK') h += '<div style="margin-top:8px;color:#FFD23F;font-weight:700">El inicio está en: ' + esc(v2Estado(e, c, 'INICIO')) + '</div>';
   return h;
+}
+/* 3-nov: varias bases extra en el día (10 am, 5 pm, 8 pm…): cada una con "＋ Otra base", la tabla muestra la suma y abajo cada base con su hora */
+function cjBasesHoy(c) {
+  var e = S.e, L = (e.movs || []).filter(function (m) { return m.tipo === 'BASE_EXTRA' && m.caja === c && m.estado === 'VIGENTE' && !(m.datos || {}).porRecibir; }), h = '';
+  if (L.length) { var tot = L.reduce(function (t, m) { return t + Number(m.monto || 0); }, 0);
+    h += '<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span style="font-size:13px;color:#8FF0C4;font-weight:700">Bases extra de hoy:</span>' + L.map(function (m, i) { return '<span style="font-size:13px;font-weight:700;border-radius:8px;padding:4px 10px;background:#123A33;color:#CFF8E4">#' + (i + 1) + ' · ' + hora(m.ts) + ' · +' + din(m.monto) + '</span>'; }).join('') + (L.length > 1 ? '<b style="font-size:14px;color:#8FF0C4">= ' + din(tot) + '</b>' : '') + '</div>'; }
+  if (S.cjNB !== c) return h;
+  var V = S.cnVal || {}, tt = 0;
+  var cel = cjFilas(c).map(function (f) { var id = 'cn_' + c + '_' + String(f[0]).replace('.', '_'), v = V[id] || ''; tt += Number(v) || 0;
+    return '<label style="display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:700;color:#CFF8E4">' + f[1] + '<input id="' + id + '" data-cn="' + c + '" data-g="' + f[0] + '" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(v) + '" style="box-sizing:border-box;width:100%;min-height:44px;border-radius:10px;padding:8px;font:inherit;font-size:16px;font-weight:700;text-align:right;background:#0E1A3D;border:2px solid #3A6B5E;color:#fff"></label>'; }).join('');
+  return h + '<div style="margin-top:10px;background:#0F2A2A;border:2px solid #8FF0C4;border-radius:14px;padding:12px"><b style="font-size:16px;color:#8FF0C4">＋ Nueva base extra a ' + CJ_NOM[c] + ' · ' + hora(Date.now()) + '</b>' +
+    '<div style="font-size:13px;color:#A9B8DE;margin:4px 0 8px">Anota solo lo que bajó ahorita de la caja mayor. Se suma a lo que ya llevas del día.</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">' + cel + '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px"><b style="flex:1 1 160px;font-size:18px">Esta base: <span id="cnt_' + c + '">' + din(tt) + '</span></b><button class="lk" data-acc="cjnbx">Cancelar</button><button class="gb" style="--c:#1F8A57;width:auto;margin:0;padding:12px 20px" data-acc="cjnbok" data-c="' + c + '">✔ GUARDAR BASE</button></div></div>';
+}
+function cjNbGuarda(c) {
+  var den = {}, mal = ''; document.querySelectorAll('input[data-cn="' + c + '"]').forEach(function (q) { var v = Number(q.value); if (!v) return; if (!(v > 0)) { mal = 'Revisa las cantidades.'; return; } var dd = cjDenUna(q.dataset.g, v); if (dd.mal) { mal = dd.mal; return; } den = cjDenMas(den, dd.den, 1); });
+  if (mal) return toast(false, mal); var tot = cjTot(den); if (!(tot > 0)) return toast(false, 'Escribe cuánto bajó de la caja mayor.');
+  ocupado(true); return api('mov', { tipo: 'BASE_EXTRA', caja: c, monto: tot, denoms: den, confirmado: true, nota: 'Base extra de la caja mayor (Mis cajas · ＋ Otra base)' }).then(function (r) { ocupado(false);
+    if (!r || !r.ok) return toast(false, (r && r.msg) || 'No se pudo guardar la base extra.');
+    S.cjNB = null; S.cnVal = {}; toast(true, '✔ Base extra +' + din(tot) + ' en ' + NOMC[c]); return refresca(true).then(function () { if (S.pant === 'cajas') pinta(); }); });
 }
 function cjCoin(g) {   /* monedita / billete dibujado para cada denominación */
   var S0 = '<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true" style="flex:none">';
@@ -3186,6 +3209,7 @@ function rifaExtra() {
 }
 document.addEventListener('change', function (ev) { if (ev.target && ev.target.id === 'm_conc' && S.arg === 'BOLETO_RIFA') { var ok = { m_bol: ($('#m_bol') || {}).value, m_cli: ($('#m_cli') || {}).value, m_tel: ($('#m_tel') || {}).value }; rifaExtra(); } });
 app.addEventListener('input', function (ev) {
+  if (ev.target && /^cn_/.test(ev.target.id || '')) { if (/[^0-9.]/.test(ev.target.value)) ev.target.value = ev.target.value.replace(/[^0-9.]/g, ''); S.cnVal = S.cnVal || {}; S.cnVal[ev.target.id] = ev.target.value; var cnc = ev.target.dataset.cn, cnt = 0; document.querySelectorAll('input[data-cn="' + cnc + '"]').forEach(function (q) { cnt += Number(q.value) || 0; }); var cno = document.getElementById('cnt_' + cnc); if (cno) cno.textContent = din(cnt); }
   if (ev.target && /^lo_e[bm]\d+$/.test(ev.target.id || '')) lcSumaE(ev.target.id.replace(/^lo_e[bm]/, ''));
   if (ev.target && (ev.target.id === 'cjed' || /^cj_/.test(ev.target.id || '')) && /[^0-9.]/.test(ev.target.value)) ev.target.value = ev.target.value.replace(/[^0-9.]/g, '');
   if (ev.target && /^cj_/.test(ev.target.id || '')) { S.cjVal = S.cjVal || {}; S.cjVal[ev.target.id] = ev.target.value; var cjp = ev.target.id.split('_'), cjt = document.getElementById('cjt_' + cjp[1] + '_' + cjp[2]); if (cjt) cjt.textContent = din(cjSuma(cjp[1], cjp[2])); }
@@ -3235,6 +3259,9 @@ app.addEventListener('click', function (ev) {
     case 'cjgrp': S.cjGrp = S.cjGrp || {}; S.cjGrp[d.g] = !S.cjGrp[d.g]; pinta(); return;
     case 'cjpend': S.cjPend = !S.cjPend; pinta(); return;
     case 'cjguarda': return cjGuarda(d.c, d.mo);
+    case 'cjnb': S.cjNB = d.c; S.cnVal = {}; pinta(); setTimeout(function () { var q = document.querySelector('input[data-cn="' + d.c + '"]'); if (q) q.focus(); }, 60); return;
+    case 'cjnbx': S.cjNB = null; S.cnVal = {}; return pinta();
+    case 'cjnbok': return cjNbGuarda(d.c);
     case 'rpmu': { var R = S.rp = S.rp || {}; R.mu = d.g; R.info = null; R.res = null; R.sal = ''; pinta(); return api('revisar_pagos', { mueble: d.g }).then(function (r) { if (R.mu !== d.g) return; if (!r.ok) { R.mu = ''; pinta(); return toast(false, r.msg); } R.info = r; pinta(); setTimeout(function () { var q = $('#rp_sal'); if (q) q.focus(); }, 30); }); }
     case 'rprev': { var R2 = S.rp || {}, sv = (($('#rp_sal') || {}).value || '').replace(/[^0-9]/g, ''); if (!sv) return toast(false, 'Escribe el contador de salida.'); R2.sal = sv; ocupado(true);
       return api('revisar_pagos', { mueble: R2.mu, salida: Number(sv) }).then(function (r) { ocupado(false); if (!r.ok) { R2.res = null; pinta(); return toast(false, r.msg); } R2.res = r; pinta(); }); }
