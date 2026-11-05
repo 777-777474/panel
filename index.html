@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070B18"><link rel="manifest" href="manifest.webmanifest"><script src="servidor.js"></script><script>window.V03_BUILD = '145d9e8a05';</script></head><body><title>Panel de Encargada V.03</title>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070B18"><link rel="manifest" href="manifest.webmanifest"><script src="servidor.js"></script><script>window.V03_BUILD = '2c9b52f9d0';</script></head><body><title>Panel de Encargada V.03</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Orbitron:wght@600;800&display=swap">
 <style>
 /* Una sola cara: sala arcade de noche (la del panel que ya se probó). Tablero de 3 momentos, un paso a la vez, botones grandes. */
@@ -632,6 +632,7 @@ function vInicio() {
   if (bCorte || bLin) h += '<div class="dosw chico">' + bCorte + bLin + '</div>';
   if (window.V03_V02IMP && e.dia && e.dia.estado === 'ABIERTO' && diaAtrasado() && !S.ayer && ['ENCARGADA', 'DIRECCION', 'SUPERVISION'].indexOf(e.persona.rol) >= 0) h += '<button class="gb" style="--c:#7c3aed;margin-bottom:10px" data-ir="v02">📥 TRAER LO QUE ANOTASTE EN LA V.02<small style="display:block;font-size:13px;font-weight:600;opacity:.9">día ' + esc(e.dia.dia) + ' · tú revisas y completas lo que falte</small></button>';
   if (e.ayer) h += '<div class="prac" style="background:rgba(255,209,102,.18);border-color:var(--neo3)">⏰ MODO AYER · administración abrió el día ' + esc(e.dia.dia) + ' hasta las ' + hora(e.ayer.hasta) + ' para que termines de capturar y cerrar.</div>';
+  else if (e.dia && e.dia.estado === 'ABIERTO' && diaAtrasado() && ['ENCARGADA', 'SUPERVISION', 'DIRECCION'].indexOf(e.persona.rol) >= 0) h += '<div class="prac" style="background:rgba(56,189,248,.16);border-color:#38bdf8">📅 Estás terminando el día <b>' + esc(fdia(e.dia.dia)) + '</b>. Anota lo que faltó (reporte del ordenador, contadores, conteos) y ciérralo; después inicias el de hoy. 💪</div>';
   if (!ab) {
     h += '<div class="sig"><div><small>SIGUIENTE PASO</small><span>' + (e.dia && e.dia.estado === 'CERRADO' ? 'El día ' + esc(e.dia.dia) + ' quedó cerrado. Cuando llegues mañana, inicia el día.' : 'Inicia el día para empezar a capturar.') + '</span></div></div>' +
       '<button class="gb" style="--c:var(--ini)" data-acc="iniciar">▶ INICIAR EL DÍA</button>';
