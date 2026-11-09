@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070B18"><link rel="manifest" href="manifest.webmanifest"><script src="servidor.js"></script><script>window.V03_BUILD = 'a7fed229ed';</script></head><body><title>Panel de Encargada V.03</title>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070B18"><link rel="manifest" href="manifest.webmanifest"><script src="servidor.js"></script><script>window.V03_BUILD = '5bd7f54ba3';</script></head><body><title>Panel de Encargada V.03</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Orbitron:wght@600;800&display=swap">
 <style>
 /* Una sola cara: sala arcade de noche (la del panel que ya se probó). Tablero de 3 momentos, un paso a la vez, botones grandes. */
@@ -759,7 +759,7 @@ function vFase() {
   return h + '</div>';
 }
 
-/* ====== CONTEO (monedas en pesos, billetes en piezas — como ya lo conocen) ====== */
+/* ====== CONTEO (monedas en pesos por denominación; billetes: solo el total en pesos, desde el 9-nov) ====== */
 function diaAtrasado() { var e = S.e; return !!S.ayer || !!(e && e.dia && e.dia.dia && e.dia.dia < new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date())); }
 function denVal(d) { return d === 'B' ? 1 : Number(String(d).replace(/m$/, '')); }
 function esBil(d) { return d === 'B' || (!/m$/.test(String(d)) && denVal(d) >= 20); }
@@ -769,7 +769,7 @@ function campoDen(pre, d, rec) {
 }
 function camposDen(pre, rec, soloMon) {
   var ds = S.e.denoms, mon = ds.filter(function (d) { return !esBil(d) && (!soloMon || soloMon.indexOf(String(d)) >= 0); }).reverse(), bil = ds.filter(function (d) { return esBil(d); }).reverse();
-  return '<div class="lbl">Monedas · cuánto dinero hay de cada una</div><div class="g3">' + mon.map(function (d) { return campoDen(pre, d, rec); }).join('') + '</div><div class="lbl">Billetes · cuántas piezas de cada uno</div><div class="g3">' + bil.map(function (d) { return campoDen(pre, d, rec); }).join('') + '</div>' +
+  return '<div class="lbl">Monedas · cuánto dinero hay de cada una</div><div class="g3">' + mon.map(function (d) { return campoDen(pre, d, rec); }).join('') + '</div>' + (bil.length ? '<div class="lbl">Billetes · el total en pesos (todos juntos)</div><div class="g3"><label class="f' + (rec && rec.some(function (d) { return esBil(d); }) ? ' rc' : '') + '">💵 Billetes · total en pesos<input id="' + pre + 'B" data-d="B" data-b="2" type="number" inputmode="decimal" min="0" step="1"></label></div>' : '') +   /* 9-nov: billetes solo como total (se confundían con las piezas) */
     '<div class="tot"><span>Total contado</span><b id="' + pre + 'tot">$0.00</b></div>';
 }
 /* dólares: aparte de los pesos, billetes de 1, 5, 10 y 20 */
@@ -785,7 +785,8 @@ function leeDen(pre) {
   var den = {}, tot = 0, mal = '';
   document.querySelectorAll('input[id^="' + pre + '"][data-d]').forEach(function (i) {
     var v = Number(i.value) || 0, d = denVal(i.dataset.d); if (v <= 0) return;
-    if (i.dataset.b === '1') { if (v % 1) mal = 'Los billetes van en piezas enteras.'; den[i.dataset.d] = Math.round(v); tot += Math.round(v) * d; }
+    if (i.dataset.b === '2') { if (v % 1) mal = 'El total de billetes va en pesos enteros.'; den.B = Math.round(v); tot += Math.round(v); }
+    else if (i.dataset.b === '1') { if (v % 1) mal = 'Los billetes van en piezas enteras.'; den[i.dataset.d] = Math.round(v); tot += Math.round(v) * d; }
     else { var q = Math.round(v * 100) / Math.round(d * 100); if (q % 1) mal = 'En monedas de $' + i.dataset.d + ' la cantidad ' + din(v) + ' no es posible.'; den[i.dataset.d] = Math.round(q); tot += Math.round(q) * d; }
   });
   return { den: den, tot: tot, mal: mal };
@@ -3788,7 +3789,8 @@ app.addEventListener('click', function (ev) {
       if (lr0 && (lr0.datos || {}).muebles) { var oi = Math.max(0, ords0.map(function (o) { return o.id; }).indexOf(d.o)); S.lcDet = S.lcDet || {}; S.lcDet['r' + oi] = true; }
       pinta(); if (S.lnEdit) { var fm = document.querySelector('[data-acc="linea"][data-f="' + S.lnEdit + '"]'); if (fm) fm.scrollIntoView({ block: 'center' }); } return; }
     case 'rcsel': { S.rcSel = d.f || ''; pinta(); var rs = (S.e.recuentos || []).filter(function (r) { return r.folio === S.rcSel; })[0];
-      if (rs) { Object.keys(rs.denoms || {}).forEach(function (dk) { var inp = document.getElementById('rc_' + String(dk).replace('.', '_')); if (!inp) return; inp.value = inp.dataset.b === '1' ? rs.denoms[dk] : Math.round(rs.denoms[dk] * denVal(dk) * 100) / 100; inp.dispatchEvent(new Event('input', { bubbles: true })); }); window.scrollTo(0, 0); }
+      if (rs) { var bilT = 0; Object.keys(rs.denoms || {}).forEach(function (dk) { if (esBil(dk)) bilT += Number(rs.denoms[dk]) * denVal(dk); }); var ib = document.getElementById('rc_B'); if (ib && bilT) { ib.value = Math.round(bilT); ib.dispatchEvent(new Event('input', { bubbles: true })); }
+        Object.keys(rs.denoms || {}).forEach(function (dk) { if (esBil(dk) && ib) return; var inp = document.getElementById('rc_' + String(dk).replace('.', '_')); if (!inp) return; inp.value = inp.dataset.b === '1' ? rs.denoms[dk] : Math.round(rs.denoms[dk] * denVal(dk) * 100) / 100; inp.dispatchEvent(new Event('input', { bubbles: true })); }); window.scrollTo(0, 0); }
       return; }
     case 'rcguardar': { var rd = leeDen('rc_'); if (rd.mal) return toast(false, rd.mal); if (!Object.keys(rd.den).length) return toast(false, 'Anota lo que contaste.'); ocupado(true);
       return api('recontar', { folio: d.f, denoms: rd.den, motivo: (($('#rc_mot') || {}).value || '').trim() }).then(function (r) { ocupado(false); if (!r.ok) return toast(false, r.msg); toast(!r.aut, r.msg); S.rcSel = ''; S.ayMovs = null; pinta(); }); }
