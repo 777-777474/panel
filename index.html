@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070B18"><link rel="manifest" href="manifest.webmanifest"><script src="servidor.js"></script><script>window.V03_BUILD = 'b231l21n01';</script></head><body><title>Panel de Encargada V.03</title>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070B18"><link rel="manifest" href="manifest.webmanifest"><script src="servidor.js"></script><script>window.V03_BUILD = 'b232p23n01';</script></head><body><title>Panel de Encargada V.03</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Orbitron:wght@600;800&display=swap">
 <style>
 /* Una sola cara: sala arcade de noche (la del panel que ya se probó). Tablero de 3 momentos, un paso a la vez, botones grandes. */
@@ -2950,10 +2950,43 @@ function vLinTabla() {
   h += nP ? '<label class="f">MOTIVO DE LA CORRECCIÓN<input id="lt_mot" placeholder="ej. me equivoqué al anotar"></label><button class="gb verde" data-acc="ltguarda">GUARDAR ' + nP + ' CAMBIO' + (nP > 1 ? 'S' : '') + '</button><button class="gb sec" data-acc="ltcancela">Deshacer cambios</button>' : '<button class="gb sec" data-acc="ltref">↻ Actualizar</button>';
   return h + '</div>';
 }
+/* 23-nov: PLATAFORMAS EN LÍNEA (Happy Hour, Coquito Spin): una tarjeta con su logo y su color arriba de la Caja 2 */
+var PLAT_LOGO = { hh: 'https://777-777474.github.io/panel/plat-hh.jpg', coq: 'https://777-777474.github.io/panel/plat-coq.jpg' };
+var PLAT_COL = { hh: ['#9f1d17', '#e8731a', '#ffd7b0'], coq: ['#0c5a31', '#28a557', '#c9f7d9'] };
+function nCr(v) { return (Number(v) || 0).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
+function platCards(e) {
+  var l = e.plataformas || []; if (!l.length) return '';
+  var jefe = ((e.persona || {}).rol) === 'DIRECCION', base = l.reduce(function (t, p) { return t + (Number(p.base) || 0); }, 0);
+  var h = '<div class="card" style="padding:10px"><div style="font-weight:800;margin:2px 2px 8px">🎰 Mis plataformas en línea</div>';
+  l.forEach(function (p) {
+    var c = PLAT_COL[p.logo] || ['#1d3266', '#3b82f6', '#cfe0ff'], f = S.platForm && S.platForm.id === p.id ? S.platForm.modo : '', app = p.tipo === 'APP', hy = p.hoy || {};
+    h += '<div style="border-radius:16px;overflow:hidden;margin-bottom:10px;background:linear-gradient(135deg,' + c[0] + ',' + c[1] + ');color:#fff;box-shadow:0 3px 12px rgba(0,0,0,.35)">' +
+      '<div style="display:flex;align-items:center;gap:10px;padding:10px">' + (PLAT_LOGO[p.logo] ? '<img alt="' + esc(p.nombre) + '" src="' + PLAT_LOGO[p.logo] + '" style="width:92px;height:64px;object-fit:cover;border-radius:10px;border:2px solid #fff;flex:none">' : '') +
+      '<div style="flex:1"><div style="font-weight:900;font-size:19px;text-shadow:0 1px 2px rgba(0,0,0,.5)">' + esc(p.nombre) + '</div><div style="font-size:13px;opacity:.95">' + (app ? 'recargas y pagos en tu Caja 2' : 'muebles de línea · ' + esc(p.grupo || '')) + ' · base ' + din(p.base) + '</div></div>' +
+      (p.lecturaHoy ? '<span class="tag" style="background:' + (p.cuadraHoy === false ? '#B00020' : '#137a3a') + ';color:#fff">' + (p.cuadraHoy === false ? '⚠ revisar' : '✔ créditos hoy') + '</span>' : '') + '</div>' +
+      '<div style="display:flex;gap:8px;background:rgba(0,0,0,.22);padding:8px 12px">' +
+        '<div style="flex:1"><div style="font-size:12px;opacity:.9">Créditos</div><div style="font-size:22px;font-weight:900">' + (p.calibrar ? '<span style="font-size:14px">se fijan con tu foto de esta noche</span>' : p.creditos == null ? '—' : nCr(p.creditos)) + '</div></div>' +
+        '<div style="flex:1"><div style="font-size:12px;opacity:.9">' + (app ? 'Hoy: recargas − pagos' : 'Hoy según ordenador') + '</div><div style="font-size:20px;font-weight:900">' + (app || hy.nR ? din(hy.ganancia) : '—') + '</div>' + (app ? '<div style="font-size:12px;opacity:.9">' + hy.nR + ' recarga(s) ' + din(hy.recargas) + ' · ' + hy.nP + ' pago(s) ' + din(hy.pagos) + '</div>' : '') + '</div></div>' +
+      (p.aviso ? '<div style="background:#fff3cd;color:#5c4400;padding:6px 12px;font-weight:700;font-size:13px">⚠ ' + esc(p.aviso) + '</div>' : '') +
+      (p.lecturaHoy && p.cuadraHoy === false ? '<div style="background:#fde2e1;color:#7a1010;padding:6px 12px;font-size:13px">La plataforma marca ' + nCr(p.ultima.creditos) + ' y deben quedar ' + nCr(p.ultima.esperado) + '. Revisa si falta anotar una recarga o un pago.</div>' : '') +
+      '<div style="display:flex;gap:6px;padding:8px 10px 10px;flex-wrap:wrap">' +
+        (app ? '<button class="gb" style="flex:1;margin:0;--c:#fff;color:' + c[0] + ';text-shadow:none;min-width:30%" data-acc="platfm" data-id="' + esc(p.id) + '" data-m="R">➕ Recarga</button><button class="gb" style="flex:1;margin:0;--c:#fff;color:' + c[0] + ';text-shadow:none;min-width:30%" data-acc="platfm" data-id="' + esc(p.id) + '" data-m="P">➖ Pago</button>' : '') +
+        '<button class="gb" style="flex:1;margin:0;--c:#fff;color:' + c[0] + ';text-shadow:none;min-width:30%" data-acc="platfm" data-id="' + esc(p.id) + '" data-m="C">📷 Créditos</button></div>';
+    if (f) h += '<div style="background:rgba(0,0,0,.35);padding:10px 12px">' + (f === 'C' ? '<label class="f" style="color:#fff">¿CUÁNTOS CRÉDITOS MARCA ' + esc(p.nombre.toUpperCase()) + ' AHORITA?<input id="pl_cr" type="number" inputmode="decimal" min="0" step="0.01"></label>' + fotoCampo('pl_foto', 'Foto de la pantalla de ' + p.nombre) + (app ? '' : '<div class="v2ay" style="color:' + c[2] + '">Primero guarda el reporte del ordenador de hoy; después los créditos.</div>') :
+        '<label class="f" style="color:#fff">' + (f === 'R' ? '¿CUÁNTO RECARGA EL CLIENTE? (entra a tu Caja 2)' : '¿CUÁNTO LE PAGAS AL CLIENTE? (sale de tu Caja 2)') + '<input id="pl_monto" type="number" inputmode="decimal" min="0" step="0.01"></label>' + (f === 'P' ? fotoCampo('pl_foto', 'Foto del cobro en ' + p.nombre) : '') + '<div class="v2ay" style="color:' + c[2] + '">1 crédito = $1. ' + (f === 'R' ? 'Los créditos bajan solos.' : 'Los créditos suben solos.') + '</div>') +
+      '<div class="v2g2" style="margin-top:6px"><button class="gb verde" style="margin:0" data-acc="platok">GUARDAR</button><button class="gb sec" style="margin:0" data-acc="platfm" data-id="">Cancelar</button></div></div>';
+    if (app && hy.porPasar > 0) h += '<div style="padding:0 10px 10px"><button class="gb" style="margin:0;--c:#ec4899" data-acc="platpase" data-id="' + esc(p.id) + '">👛 Pasar la ganancia de hoy a la bolsita · ' + din(hy.porPasar) + '</button></div>';
+    if (jefe) h += '<div style="background:rgba(0,0,0,.45);padding:8px 12px;font-size:13px"><b>👤 Solo tú:</b> costo ' + din(p.costo) + ' por crédito · tus créditos valen <b>' + (p.valor == null ? '—' : din(p.valor)) + '</b> · hoy: ganancia ' + din(hy.ganancia) + ' − costo ' + din(p.costoHoy) + ' = <b>te queda ' + din(p.quedaHoy) + '</b>' +
+      ((p.lecturas || []).length ? '<table class="v2tb" style="margin-top:6px;color:#fff"><tr><th>Noche</th><th>Marca</th><th>Debían</th><th>Dif.</th></tr>' + p.lecturas.slice().reverse().slice(0, 7).map(function (z) { var df = (Number(z.creditos) || 0) - (Number(z.esperado) || 0); return '<tr><td>' + esc(fdia(z.dia)) + '</td><td>' + nCr(z.creditos) + '</td><td>' + nCr(z.esperado) + '</td><td>' + (Math.abs(df) < 1 ? '✔' : (df < 0 ? '−' : '+') + nCr(Math.abs(df))) + '</td></tr>'; }).join('') + '</table>' : '') +
+      '<div class="v2g2" style="margin-top:6px"><input id="pl_asig_' + esc(p.id) + '" type="number" inputmode="decimal" placeholder="➕ créditos que le das" style="padding:8px;border-radius:8px;border:0"><button class="gb sec" style="margin:0" data-acc="platasig" data-id="' + esc(p.id) + '">Asignar créditos</button></div></div>';
+    h += '</div>';
+  });
+  return h + '<div class="v2ay">🟩 Tu Caja 2 tiene base de <b>' + din(base) + '</b> para pagar premios (' + l.map(function (p) { return esc(p.nombre) + ' ' + din(p.base); }).join(' + ') + '). Lo que pase de la base es ganancia y va a la bolsita.</div></div>';
+}
 function vCaja2() {
   var e = S.e, c = S.arg || 'C1'; if (!v2On(e)) { S.pant = 'inicio'; return vInicio(); }
   if (c === 'BOL') return vBol2();
-  var col = c === 'C1' ? 'var(--dur)' : '#22c55e', h = top((c === 'C1' ? '🟦 ' : '🟩 ') + NOMC[c] + (c === 'C1' ? ' · muebles' : ' · líneas'), col, 'inicio') + '<div class="wrap"><div class="card">' + v2Tabla(c) + v2Flujo(c) + v2CorteExp(c) + '</div>';
+  var col = c === 'C1' ? 'var(--dur)' : '#22c55e', h = top((c === 'C1' ? '🟦 ' : '🟩 ') + NOMC[c] + (c === 'C1' ? ' · muebles' : ' · líneas'), col, 'inicio') + '<div class="wrap">' + (c === 'C2' ? platCards(e) : '') + '<div class="card">' + v2Tabla(c) + v2Flujo(c) + v2CorteExp(c) + '</div>';
   h += '<div class="v2ay" style="margin:6px 0 8px">⬇ Lo demás, por si lo ocupas en el día (toca ▸ para abrir)</div>';
   var z = ((e.miCaja || {}).cajas || []).filter(function (x) { return x.caja === c; })[0] || { entra: [], sale: [] };
   var grp = function (k) { return (z.sale || []).concat(z.entra || []).filter(function (g) { return g.k === k; })[0]; };
@@ -3498,6 +3531,15 @@ app.addEventListener('click', function (ev) {
     case 'cjmov': S.cjVuelve = 'cajas'; S.caja = d.c === 'ACERO' ? '' : d.c; return ir('mov', d.t);
     case 'contlisto': ocupado(true); return api('contadores_listo', { listo: d.v === '1' }).then(function (r) { ocupado(false); toast(r.ok, r.msg); pinta(); });
     case 'cont2k': S.kVuelve2 = d.m ? 0 : 1; S.kForzar = d.mu; S.deAnoche = d.m === 'MANANA'; S.prev = S.pant; S.pant = 'contadores'; S.arg = d.m || null; pinta(); window.scrollTo(0, 0); return;
+    case 'platfm': { var pid = d.id || ''; S.platForm = pid ? { id: pid, modo: d.m } : null; delete FOTOS.pl_foto; return pinta(); }
+    case 'platok': { var pf = S.platForm || {}, pp = ((S.e || {}).plataformas || []).filter(function (z) { return z.id === pf.id; })[0]; if (!pp) return;
+      var trasPl = function (r) { delete FOTOS.pl_foto; S.platForm = null; if (r && r.plataformas && S.e) S.e.plataformas = r.plataformas; return refresca(true).then(pinta, pinta); };
+      if (pf.modo === 'C') { var cr = ($('#pl_cr') || {}).value; if (cr === '' || cr == null || !(Number(cr) >= 0)) return toast(false, 'Escribe cuántos créditos marca ' + pp.nombre + '.'); if (!FOTOS.pl_foto && !PRACTICA) return toast(false, 'Toma la foto de la pantalla de ' + pp.nombre + '.');
+        ocupado(true); return api('plat_creditos', Object.assign({ plat: pp.id, creditos: Number(cr) }, PRACTICA && !FOTOS.pl_foto ? { foto: 'practica' } : fotoDe('pl_foto'))).then(fin('✔ Guardado', trasPl)); }
+      var pm = Number(($('#pl_monto') || {}).value) || 0; if (!(pm > 0)) return toast(false, 'Escribe la cantidad.'); if (pf.modo === 'P' && !FOTOS.pl_foto && !PRACTICA) return toast(false, 'Toma la foto del cobro en ' + pp.nombre + '.');
+      ocupado(true); return api('mov', Object.assign({ tipo: pf.modo === 'R' ? 'PLAT_RECARGA' : 'PLAT_PAGO', plat: pp.id, monto: pm }, pf.modo === 'P' ? (PRACTICA && !FOTOS.pl_foto ? { foto: 'practica' } : fotoDe('pl_foto')) : {})).then(fin('✔ Guardado', trasPl)); }
+    case 'platpase': { ocupado(true); return api('plat_pase', { plat: d.id }).then(fin('✔ Listo', function (r) { if (r && r.plataformas && S.e) S.e.plataformas = r.plataformas; return refresca(true).then(pinta, pinta); })); }
+    case 'platasig': { var av = Number(($('#pl_asig_' + d.id) || {}).value) || 0; if (!av) return toast(false, 'Escribe cuántos créditos le das.'); ocupado(true); return api('plat_config', { plat: d.id, asignar: av }).then(fin('✔ Asignados', function (r) { if (r && r.plataformas && S.e) S.e.plataformas = r.plataformas; pinta(); })); }
     case 'sacarapido': { var smu = ($('#sr_mu') || {}).value, smo = Number(($('#sr_monto') || {}).value) || 0; if (!smu) return toast(false, 'Elige el mueble.'); if (!(smo > 0)) return toast(false, 'Escribe cuánto sacaste.'); if (!FOTOS.sr_foto && !PRACTICA) return toast(false, 'Toma la foto del dinero que sacaste.');
       ocupado(true); return api('saca_mueble', Object.assign({ mueble: smu, monto: smo }, PRACTICA && !FOTOS.sr_foto ? { foto: 'practica' } : fotoDe('sr_foto'))).then(fin('✔ Guardado', function () { delete FOTOS.sr_foto; S.acc = ''; pinta(); })); }
     case 'actualizar': { var irSin = function () { window.open(window.V03_URL || location.href, '_top'); };
